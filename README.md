@@ -367,5 +367,494 @@ cfssl gencert -initca ca-csr.json | cfssljson -bare ca
 ![ti17](https://github.com/busolagbadero/Orchestrating-containers-across-multiple-Virtual-Servers-with-Kubernetes./assets/94229949/49484d09-eeec-427c-9d59-eef6bfa99a14)
 
 
+- Provisioning Client/Server certificates for all the components that will communicate with the api-server by using the root CA to request more certificates which the different Kubernetes components, i.e. clients and server, will use to have encrypted communication.
 
+- Generating the Certificate Signing Request (CSR), Private Key and the Certificate for the Kubernetes Master Nodes (api-server).
+```
+{
+cat > master-kubernetes-csr.json <<EOF
+{
+  "CN": "kubernetes",
+   "hosts": [
+   "127.0.0.1",
+   "172.31.0.10",
+   "172.31.0.11",
+   "172.31.0.12",
+   "ip-172-31-0-10",
+   "ip-172-31-0-11",
+   "ip-172-31-0-12",
+   "ip-172-31-0-10.${AWS_REGION}.compute.internal",
+   "ip-172-31-0-11.${AWS_REGION}.compute.internal",
+   "ip-172-31-0-12.${AWS_REGION}.compute.internal",
+   "${KUBERNETES_PUBLIC_ADDRESS}",
+   "kubernetes",
+   "kubernetes.default",
+   "kubernetes.default.svc",
+   "kubernetes.default.svc.cluster",
+   "kubernetes.default.svc.cluster.local"
+  ],
+  "key": {
+    "algo": "rsa",
+    "size": 2048
+  },
+  "names": [
+    {
+      "C": "UK",
+      "L": "England",
+      "O": "Kubernetes",
+      "OU": "DAREY.IO DEVOPS",
+      "ST": "London"
+    }
+  ]
+}
+EOF
+
+cfssl gencert \
+  -ca=ca.pem \
+  -ca-key=ca-key.pem \
+  -config=ca-config.json \
+  -profile=kubernetes \
+  master-kubernetes-csr.json | cfssljson -bare master-kubernetes
+}
+```
+
+![ti18](https://github.com/busolagbadero/Orchestrating-containers-across-multiple-Virtual-Servers-with-Kubernetes./assets/94229949/d8887c0b-e58b-41a6-9f13-6b863d53da59)
+
+- Generating Client Certificate and Private Key for **kube-scheduler**
+```
+{
+
+cat > kube-scheduler-csr.json <<EOF
+{
+  "CN": "system:kube-scheduler",
+  "key": {
+    "algo": "rsa",
+    "size": 2048
+  },
+  "names": [
+    {
+      "C": "UK",
+      "L": "England",
+      "O": "system:kube-scheduler",
+      "OU": "DAREY.IO DEVOPS",
+      "ST": "London"
+    }
+  ]
+}
+EOF
+
+cfssl gencert \
+  -ca=ca.pem \
+  -ca-key=ca-key.pem \
+  -config=ca-config.json \
+  -profile=kubernetes \
+  kube-scheduler-csr.json | cfssljson -bare kube-scheduler
+
+}
+```
+
+
+![ti18](https://github.com/busolagbadero/Orchestrating-containers-across-multiple-Virtual-Servers-with-Kubernetes./assets/94229949/59e255e8-3756-491b-bdd3-08b89742cad1)
+
+![ti19](https://github.com/busolagbadero/Orchestrating-containers-across-multiple-Virtual-Servers-with-Kubernetes./assets/94229949/4ce8e9e1-3989-4697-8c1b-ae61c60c1d17)
+
+
+- Generating Client Certificate and Private Key for **kube-proxy**
+```
+{
+
+cat > kube-proxy-csr.json <<EOF
+{
+  "CN": "system:kube-proxy",
+  "key": {
+    "algo": "rsa",
+    "size": 2048
+  },
+  "names": [
+    {
+      "C": "UK",
+      "L": "England",
+      "O": "system:node-proxier",
+      "OU": "DAREY.IO DEVOPS",
+      "ST": "London"
+    }
+  ]
+}
+EOF
+
+cfssl gencert \
+  -ca=ca.pem \
+  -ca-key=ca-key.pem \
+  -config=ca-config.json \
+  -profile=kubernetes \
+  kube-proxy-csr.json | cfssljson -bare kube-proxy
+
+}
+```
+
+![ti20](https://github.com/busolagbadero/Orchestrating-containers-across-multiple-Virtual-Servers-with-Kubernetes./assets/94229949/904078be-ce68-4b64-829e-3a38138f0c76)
+
+- Generating Client Certificate and Private Key for **kube-controller-manager**
+```
+{
+cat > kube-controller-manager-csr.json <<EOF
+{
+  "CN": "system:kube-controller-manager",
+  "key": {
+    "algo": "rsa",
+    "size": 2048
+  },
+  "names": [
+    {
+      "C": "UK",
+      "L": "England",
+      "O": "system:kube-controller-manager",
+      "OU": "DAREY.IO DEVOPS",
+      "ST": "London"
+    }
+  ]
+}
+EOF
+
+cfssl gencert \
+  -ca=ca.pem \
+  -ca-key=ca-key.pem \
+  -config=ca-config.json \
+  -profile=kubernetes \
+  kube-controller-manager-csr.json | cfssljson -bare kube-controller-manager
+
+}
+```
+
+![ti21](https://github.com/busolagbadero/Orchestrating-containers-across-multiple-Virtual-Servers-with-Kubernetes./assets/94229949/8e19ecc6-6532-4dc6-bdab-0f6fafd3b856)
+
+
+- Generating Client Certificate and Private Key for **kubelet**
+```
+for i in 0 1 2; do
+  instance="${NAME}-worker-${i}"
+  instance_hostname="ip-172-31-0-2${i}"
+  cat > ${instance}-csr.json <<EOF
+{
+  "CN": "system:node:${instance_hostname}",
+  "key": {
+    "algo": "rsa",
+    "size": 2048
+  },
+  "names": [
+    {
+      "C": "UK",
+      "L": "England",
+      "O": "system:nodes",
+      "OU": "DAREY.IO DEVOPS",
+      "ST": "London"
+    }
+  ]
+}
+EOF
+
+  external_ip=$(aws ec2 describe-instances \
+    --filters "Name=tag:Name,Values=${instance}" \
+    --output text --query 'Reservations[].Instances[].PublicIpAddress')
+
+  internal_ip=$(aws ec2 describe-instances \
+    --filters "Name=tag:Name,Values=${instance}" \
+    --output text --query 'Reservations[].Instances[].PrivateIpAddress')
+
+  cfssl gencert \
+    -ca=ca.pem \
+    -ca-key=ca-key.pem \
+    -config=ca-config.json \
+    -hostname=${instance_hostname},${external_ip},${internal_ip} \
+    -profile=kubernetes \
+    ${NAME}-worker-${i}-csr.json | cfssljson -bare ${NAME}-worker-${i}
+done
+```
+
+![ti22](https://github.com/busolagbadero/Orchestrating-containers-across-multiple-Virtual-Servers-with-Kubernetes./assets/94229949/7184888e-aa82-457a-b04c-e840f79982d5)
+
+- Generating Client Certificate and Private Key for **kubernetes admin user**
+```
+{
+cat > admin-csr.json <<EOF
+{
+  "CN": "admin",
+  "key": {
+    "algo": "rsa",
+    "size": 2048
+  },
+  "names": [
+    {
+      "C": "UK",
+      "L": "England",
+      "O": "system:masters",
+      "OU": "DAREY.IO DEVOPS",
+      "ST": "London"
+    }
+  ]
+}
+EOF
+
+cfssl gencert \
+  -ca=ca.pem \
+  -ca-key=ca-key.pem \
+  -config=ca-config.json \
+  -profile=kubernetes \
+  admin-csr.json | cfssljson -bare admin
+}
+```
+
+![ti23](https://github.com/busolagbadero/Orchestrating-containers-across-multiple-Virtual-Servers-with-Kubernetes./assets/94229949/3ca5ebdd-7455-47b5-8e09-e9df31034721)
+
+
+- Generating Client Certificate and Private Key for **Token Controller**
+
+It is a part of the Kubernetes Controller Manager responsible for generating and signing service account tokens which are used by pods or other resources to establish connectivity to the api-server
+```
+{
+
+cat > service-account-csr.json <<EOF
+{
+  "CN": "service-accounts",
+  "key": {
+    "algo": "rsa",
+    "size": 2048
+  },
+  "names": [
+    {
+      "C": "UK",
+      "L": "England",
+      "O": "Kubernetes",
+      "OU": "DAREY.IO DEVOPS",
+      "ST": "London"
+    }
+  ]
+}
+EOF
+
+cfssl gencert \
+  -ca=ca.pem \
+  -ca-key=ca-key.pem \
+  -config=ca-config.json \
+  -profile=kubernetes \
+  service-account-csr.json | cfssljson -bare service-account
+}
+```
+
+![ti24](https://github.com/busolagbadero/Orchestrating-containers-across-multiple-Virtual-Servers-with-Kubernetes./assets/94229949/39c51341-6e31-4107-9e51-a331e829d238)
+
+
+
+## STEP 6: Distributing The Client And Server Certificates
+- Sending all the client and server certificates to their respective instances. Starting from **worker nodes**
+```
+for i in 0 1 2; do
+  instance="${NAME}-worker-${i}"
+  external_ip=$(aws ec2 describe-instances \
+    --filters "Name=tag:Name,Values=${instance}" \
+    --output text --query 'Reservations[].Instances[].PublicIpAddress')
+  scp -i ../ssh/${NAME}.id_rsa \
+    ca.pem ${instance}-key.pem ${instance}.pem ubuntu@${external_ip}:~/; \
+done
+```
+
+- For the **master nodes**:
+```
+for i in 0 1 2; do
+instance="${NAME}-master-${i}" \
+  external_ip=$(aws ec2 describe-instances \
+    --filters "Name=tag:Name,Values=${instance}" \
+    --output text --query 'Reservations[].Instances[].PublicIpAddress')
+  scp -i ../ssh/${NAME}.id_rsa \
+    ca.pem ca-key.pem service-account-key.pem service-account.pem \
+    master-kubernetes.pem master-kubernetes-key.pem ubuntu@${external_ip}:~/;
+done
+```
+
+
+To streamline the process and ensure smooth operation when the Kubernetes cluster is up and running, the next step involves creating kubeconfig files. These files are essential for Kubernetes clients to locate and authenticate with the Kubernetes API Servers.
+
+To accomplish this, the following environment variables will be set up for use in multiple commands, saving time and effort:
+
+Client tool: The first requirement is to have the kubectl client tool installed. This tool is widely used for interacting with Kubernetes clusters.
+
+Generating kubeconfig files: Kubeconfig files need to be generated for various clients, including kubelet, controller manager, kube-proxy, scheduler, and the admin user. These files will contain the necessary configuration details and credentials required for authentication and communication with the Kubernetes API Servers.
+
+By creating and properly configuring the kubeconfig files, managing the Kubernetes cluster becomes more convenient and efficient. The `kubectl` command line tool is essential for executing commands and managing the cluster.
+
+- Creating an environment variables for reuse by multiple commands:`$ KUBERNETES_API_SERVER_ADDRESS=$(aws elbv2 describe-load-balancers --load-balancer-arns ${LOAD_BALANCER_ARN} --output text --query 'LoadBalancers[].DNSName')`
+- Generating the kubelet kubeconfig file:
+```
+for i in 0 1 2; do
+
+instance="${NAME}-worker-${i}"
+instance_hostname="ip-172-31-0-2${i}"
+
+ # Set the kubernetes cluster in the kubeconfig file
+  kubectl config set-cluster ${NAME} \
+    --certificate-authority=ca.pem \
+    --embed-certs=true \
+    --server=https://$KUBERNETES_API_SERVER_ADDRESS:6443 \
+    --kubeconfig=${instance}.kubeconfig
+
+# Set the cluster credentials in the kubeconfig file
+  kubectl config set-credentials system:node:${instance_hostname} \
+    --client-certificate=${instance}.pem \
+    --client-key=${instance}-key.pem \
+    --embed-certs=true \
+    --kubeconfig=${instance}.kubeconfig
+
+# Set the context in the kubeconfig file
+  kubectl config set-context default \
+    --cluster=${NAME} \
+    --user=system:node:${instance_hostname} \
+    --kubeconfig=${instance}.kubeconfig
+
+  kubectl config use-context default --kubeconfig=${instance}.kubeconfig
+done
+```
+
+- Generating the kube-proxy kubeconfig
+```
+{
+  kubectl config set-cluster ${NAME} \
+    --certificate-authority=ca.pem \
+    --embed-certs=true \
+    --server=https://${KUBERNETES_API_SERVER_ADDRESS}:6443 \
+    --kubeconfig=kube-proxy.kubeconfig
+
+  kubectl config set-credentials system:kube-proxy \
+    --client-certificate=kube-proxy.pem \
+    --client-key=kube-proxy-key.pem \
+    --embed-certs=true \
+    --kubeconfig=kube-proxy.kubeconfig
+
+  kubectl config set-context default \
+    --cluster=${NAME} \
+    --user=system:kube-proxy \
+    --kubeconfig=kube-proxy.kubeconfig
+
+  kubectl config use-context default --kubeconfig=kube-proxy.kubeconfig
+}
+```
+
+![ti29](https://github.com/busolagbadero/Orchestrating-containers-across-multiple-Virtual-Servers-with-Kubernetes./assets/94229949/3afc74fc-a785-47cf-89d7-4246bf29ced3)
+
+- Generating the Kube-Controller-Manager kubeconfig:
+```
+{
+  kubectl config set-cluster ${NAME} \
+    --certificate-authority=ca.pem \
+    --embed-certs=true \
+    --server=https://127.0.0.1:6443 \
+    --kubeconfig=kube-controller-manager.kubeconfig
+
+  kubectl config set-credentials system:kube-controller-manager \
+    --client-certificate=kube-controller-manager.pem \
+    --client-key=kube-controller-manager-key.pem \
+    --embed-certs=true \
+    --kubeconfig=kube-controller-manager.kubeconfig
+
+  kubectl config set-context default \
+    --cluster=${NAME} \
+    --user=system:kube-controller-manager \
+    --kubeconfig=kube-controller-manager.kubeconfig
+
+  kubectl config use-context default --kubeconfig=kube-controller-manager.kubeconfig
+}
+```
+
+![ti30](https://github.com/busolagbadero/Orchestrating-containers-across-multiple-Virtual-Servers-with-Kubernetes./assets/94229949/dcddb3f0-274e-46eb-933d-6de51725da64)
+
+
+- Generating the Kube-Scheduler Kubeconfig:
+```
+{
+  kubectl config set-cluster ${NAME} \
+    --certificate-authority=ca.pem \
+    --embed-certs=true \
+    --server=https://127.0.0.1:6443 \
+    --kubeconfig=kube-scheduler.kubeconfig
+
+  kubectl config set-credentials system:kube-scheduler \
+    --client-certificate=kube-scheduler.pem \
+    --client-key=kube-scheduler-key.pem \
+    --embed-certs=true \
+    --kubeconfig=kube-scheduler.kubeconfig
+
+  kubectl config set-context default \
+    --cluster=${NAME} \
+    --user=system:kube-scheduler \
+    --kubeconfig=kube-scheduler.kubeconfig
+
+  kubectl config use-context default --kubeconfig=kube-scheduler.kubeconfig
+}
+```
+
+![ti31](https://github.com/busolagbadero/Orchestrating-containers-across-multiple-Virtual-Servers-with-Kubernetes./assets/94229949/82d1edf0-7570-4f98-9eec-6ec0d7879a31)
+
+
+- Generating the kubeconfig file for the admin user
+```
+{
+  kubectl config set-cluster ${NAME} \
+    --certificate-authority=ca.pem \
+    --embed-certs=true \
+    --server=https://${KUBERNETES_API_SERVER_ADDRESS}:6443 \
+    --kubeconfig=admin.kubeconfig
+
+  kubectl config set-credentials admin \
+    --client-certificate=admin.pem \
+    --client-key=admin-key.pem \
+    --embed-certs=true \
+    --kubeconfig=admin.kubeconfig
+
+  kubectl config set-context default \
+    --cluster=${NAME} \
+    --user=admin \
+    --kubeconfig=admin.kubeconfig
+
+  kubectl config use-context default --kubeconfig=admin.kubeconfig
+}
+```
+
+![ti32](https://github.com/busolagbadero/Orchestrating-containers-across-multiple-Virtual-Servers-with-Kubernetes./assets/94229949/3930b1d7-7de0-4550-94a9-cff64b62ef3d)
+
+
+- Distributing the files to thier respective servers using scp and for loop:
+
+**For Master nodes**
+
+![ti34](https://github.com/busolagbadero/Orchestrating-containers-across-multiple-Virtual-Servers-with-Kubernetes./assets/94229949/388ab767-9aa6-4a31-8752-4a52024345e3)
+
+
+**For Worker nodes**
+
+![ti33](https://github.com/busolagbadero/Orchestrating-containers-across-multiple-Virtual-Servers-with-Kubernetes./assets/94229949/d3c78c1f-ec8e-4516-9fae-1a978d203da2)
+
+
+
+To address the security risk associated with Kubernetes' use of etcd, a distributed key-value store for storing cluster state, application configurations, and secrets, it is crucial to take measures to encrypt the data at rest. By default, the data stored in etcd is in plain text, making it vulnerable to exploitation if an attacker gains access to the database.
+
+In order to mitigate this risk, it is necessary to prepare and implement encryption for etcd data at rest. Encrypting etcd ensures that even if the data is accessed by unauthorized entities, it remains unreadable and protected. By encrypting the data, the confidentiality and integrity of the stored information are maintained, adding an additional layer of security to the Kubernetes cluster.
+
+By taking the necessary steps to encrypt etcd at rest, the overall security posture of the Kubernetes cluster is significantly improved, reducing the risk of data compromise and unauthorized access.
+
+ - Generating encryption key and encoding it using base64:`ETCD_ENCRYPTION_KEY=$(head -c 32 /dev/urandom | base64)`
+ - Creating an encryption-config.yaml file
+ ```
+ cat > encryption-config.yaml <<EOF
+kind: EncryptionConfig
+apiVersion: v1
+resources:
+  - resources:
+      - secrets
+    providers:
+      - aescbc:
+          keys:
+            - name: key1
+              secret: ${ETCD_ENCRYPTION_KEY}
+      - identity: {}
+EOF
+```
 
