@@ -1543,6 +1543,10 @@ EOF
 ```
 - Checking the readiness of the worker nodes on all master nodes:`$ kubectl get nodes --kubeconfig admin.kubeconfig -o wide`
 
+
+Now you should have the worker nodes joined to the cluster, and in a READY state.
+
+
 ![ti51](https://github.com/busolagbadero/Orchestrating-containers-across-multiple-Virtual-Servers-with-Kubernetes./assets/94229949/d5b14f6f-9477-4fca-bff0-8573e08c2e81)
 
 ![ti52](https://github.com/busolagbadero/Orchestrating-containers-across-multiple-Virtual-Servers-with-Kubernetes./assets/94229949/aae448a1-97d2-43b2-a49e-8985a4f74300)
@@ -1550,3 +1554,5 @@ EOF
 ![ti53](https://github.com/busolagbadero/Orchestrating-containers-across-multiple-Virtual-Servers-with-Kubernetes./assets/94229949/e5fe2049-dbdb-4f81-a9e9-46c8f6cf7ec7)
 
 ![ti54](https://github.com/busolagbadero/Orchestrating-containers-across-multiple-Virtual-Servers-with-Kubernetes./assets/94229949/f16eaca7-2081-49c7-84ad-2bcf763a2fde)
+
+
