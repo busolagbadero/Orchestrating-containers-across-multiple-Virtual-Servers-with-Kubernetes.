@@ -909,7 +909,7 @@ sudo mv etcd-v3.4.15-linux-amd64/etcd* /usr/local/bin/
 
 The instance internal IP address will be used to serve client requests and communicate with etcd cluster peers. Retrieve the internal IP address for the current compute instance
 
-``
+```
 ETCD_NAME=$(curl -s http://169.254.169.254/latest/user-data/ \
   | tr "|" "\n" | grep "^name" | cut -d"=" -f2)
 
@@ -1011,13 +1011,13 @@ encryption-config.yaml /var/lib/kubernetes/
 - The instance internal IP address will be used to advertise the API Server to members of the cluster. Retrieving the internal IP address for the current compute instance:`$ export INTERNAL_IP=$(curl -s http://169.254.169.254/latest/meta-data/local-ipv4)`
 - Creating the kube-apiserver.service systemd unit file:
 ```
-cat <<EOF | sudo tee /etc/systemd/system/kube-apiserver.service
-[Unit]
-Description=Kubernetes API Server
-Documentation=https://github.com/kubernetes/kubernetes
+ cat <<EOF | sudo tee /etc/systemd/system/kube-apiserver.service
+ [Unit]
+ Description=Kubernetes API Server
+ Documentation=https://github.com/kubernetes/kubernetes
 
-[Service]
-ExecStart=/usr/local/bin/kube-apiserver \\
+ [Service]
+ ExecStart=/usr/local/bin/kube-apiserver \\
   --advertise-address=${INTERNAL_IP} \\
   --allow-privileged=true \\
   --apiserver-count=3 \\
@@ -1047,13 +1047,13 @@ ExecStart=/usr/local/bin/kube-apiserver \\
   --tls-cert-file=/var/lib/kubernetes/master-kubernetes.pem \\
   --tls-private-key-file=/var/lib/kubernetes/master-kubernetes-key.pem \\
   --v=2
-Restart=on-failure
-RestartSec=5
+ Restart=on-failure
+ RestartSec=5
 
-[Install]
-WantedBy=multi-user.target
-EOF
-```
+ [Install]
+ WantedBy=multi-user.target
+ EOF
+ ```
 
 - Moving the kube-controller-manager kubeconfig into place:`$ sudo mv kube-controller-manager.kubeconfig /var/lib/kubernetes/`
 - Exporting some variables to retrieve the vpc_cidr which will be required for the bind-address flag:
@@ -1213,6 +1213,7 @@ EOF
 ```
 
 - The **RBAC** permissions is configured to allow the Kubernetes API Server to access the Kubelet API on each worker nodes. Creating the system:kube-apiserver-to-kubelet ClusterRole with permissions to access the Kubelet API and perform most common tasks associated with managing pods on the worker nodes:
+
 ```
 cat <<EOF | kubectl apply --kubeconfig admin.kubeconfig -f -
 apiVersion: rbac.authorization.k8s.io/v1
@@ -1237,10 +1238,14 @@ rules:
 EOF
 ```
 
+
 ![ti50](https://github.com/busolagbadero/Orchestrating-containers-across-multiple-Virtual-Servers-with-Kubernetes./assets/94229949/5a3d30a7-baaf-424b-883d-67e89cb8e2b8)
 
 
+
+
 - Binding the system:kube-apiserver-to-kubelet ClusterRole to the kubernetes user so that API server can authenticate successfully to the kubelets on the worker nodes:
+
 
 ```
 cat <<EOF | kubectl apply --kubeconfig admin.kubeconfig -f -
