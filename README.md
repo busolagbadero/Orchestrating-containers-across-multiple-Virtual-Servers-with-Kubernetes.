@@ -1454,9 +1454,8 @@ NAME=k8s-cluster-from-ground-up
 WORKER_NAME=${NAME}-$(curl -s http://169.254.169.254/latest/user-data/ \
   | tr "|" "\n" | grep "^name" | cut -d"=" -f2)
 echo "${WORKER_NAME}"
-
+```
 Creating the kubelet-config.yaml file
-
 ```
 cat <<EOF | sudo tee /var/lib/kubelet/kubelet-config.yaml
 kind: KubeletConfiguration
